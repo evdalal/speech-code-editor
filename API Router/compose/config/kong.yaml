@@ -1,0 +1,12 @@
+_format_version: "2.1"
+_transform: true
+# tell kong existing services and how to get to them
+services:
+  - name: login_service
+    url: http://host.docker.internal:8080/api/v1/user/login
+    routes:
+      - name: login_route
+        paths:
+          - /login_request
+        strip_path: true
+# plugins: add third party plugins like authentication and limiting stream
