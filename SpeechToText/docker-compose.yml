@@ -4,7 +4,8 @@ services:
   rtstt:
     build:
       context: .
-      target: gpu
+      # choose cpu mode or gpu mode to accelerate speech to text processes
+      target: cpu
     image: rtstt
     container_name: rtstt
     volumes:
@@ -14,11 +15,12 @@ services:
     ports:
       - "9001:9001"
 
-    deploy:
-      resources:
-        reservations:
-          devices:
-          - capabilities: ["gpu"]
+# uncomment this part when using gpu to accelerate
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#          - capabilities: ["gpu"]
 
 volumes:
   cache:
