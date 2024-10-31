@@ -95,7 +95,7 @@ if __name__ == '__main__':
             # print(f"Server resampled chunk size: {len(chunk)}; {type(resampled_chunk)}") 512 bytes
             recorder.process_audio_chunk(resampled_chunk)
 
-    start_server = websockets.serve(echo, "localhost", 8080)
+    start_server = websockets.serve(echo, "0.0.0.0", 9001)
 
     recorder_thread = threading.Thread(target=recorder_thread)
     recorder_thread.start()
