@@ -2,13 +2,6 @@ import pytest
 from flask.wrappers import Response
 from app import create_app
 
-@pytest.fixture
-def client():
-    app = create_app()
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
-
 # TODO: add comments
 
 def test_context(client):
@@ -26,12 +19,12 @@ def test_context_invalid_type(client):
     assert '"context" should be a string' in response.get_json()['error']
 
 
-def test_prompt_success(mocker, client):
+def test_prompt_success(mock_requests_post, client, mocker):
     example_prompt: str = 'Write a function which calculates the nth Fibonnaci value.'
 
     # Mock functions 
-    mocker.patch('app.firebase_utils.get_user_messages_from_firebase', return_value=[ {'role': 'system', 'content': 'Hello!'} ]) 
-    mocker.patch('app.ollama_utils.query_ollama_prompt', return_value={ 'message': 'Success'})
+    mocker.patch('app.firebase_utils.get_user_messages_from_firebase', return_value=[ {'role': 'system', 'content': 'Hello!'} ])     
+    mock_requests_post(status_code=200, json_data={'message': 'Success'})
 
     response: Response = client.post('/prompt', json={'prompt': example_prompt, 'userid': 1, 'conversationid': 1})
         

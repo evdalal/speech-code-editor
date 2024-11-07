@@ -48,7 +48,7 @@ def prompt() -> Response:
         userid: str = data['userid']
         convoid: str = data['conversationid']
         prompt: str = data['prompt']
-    except:
+    except KeyError:
         return jsonify({'error': 'Missing key in JSON. Keys must include prompt, userid, and conversationid'}), 400
 
 
