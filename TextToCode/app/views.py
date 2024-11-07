@@ -97,3 +97,27 @@ def add_entry() -> Any:
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app_views.route('/get_user_messages', methods=['POST'])
+def get_user_messages() -> Any:
+    """
+    Receives POST request with user ID and conversation ID as parameters
+    in the request body and returns the filtered messages from Firebase.
+    """
+    data = request.json  # Get the JSON data from the request body
+
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    userid = data.get('userid')
+    conversation_id = data.get('conversation_id')
+
+    if not userid or not conversation_id:
+        return jsonify({'error': 'Missing userid or conversation_id parameter'}), 400
+
+    try:
+        messages = get_user_messages_from_firebase(userid, conversation_id)
+        if not messages:
+            return jsonify({'message': 'No messages found'}), 404
+        return jsonify({'success': True, 'messages': messages}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

@@ -11,11 +11,12 @@ default_app = firebase_admin.initialize_app(cred, {
 })
 
 
-def get_user_messages_from_firebase(userid: str) -> List[Dict[str, Any]]:
+def get_user_messages_from_firebase(userid: str, conversation_id: str) -> List[Dict[str, Any]]:
     '''
-    Queries Firebase Firestore and returns the list of user messages.
+    Queries Firebase Realtime Database and returns the list of user messages.
 
-    :param userid (str): The user for which to query messages 
+    :param userid (str): The user ID for which to query messages
+    :return: List[Dict[str, Any]], the list of user messages
     '''
 
     mock = [
@@ -58,8 +59,29 @@ def get_user_messages_from_firebase(userid: str) -> List[Dict[str, Any]]:
         Do NOT return anything other than JSON
         '''}
     ]
+    try:
+        # Reference the 'user-prompt' node
+        ref = db.reference('user-prompt')
+        # Retrieve all messages under the 'user-prompt' node
+        messages = ref.get()
 
-    return mock
+        # If no messages exist, return an empty list
+        if not messages:
+            return []
+
+        # Filter messages where user_id and conversation_id match the parameters
+        filtered_messages = [
+            msg for msg in messages.values()
+            if msg.get('user_id') == userid and msg.get('conversation_id') == conversation_id
+        ]
+
+        return filtered_messages
+
+    except Exception as e:
+        # Print an error message if any exception occurs
+        print(f"Error retrieving messages for user {userid} with conversation ID {conversation_id}: {str(e)}")
+        return []
+
 
 
 def update_user_messages_to_firebase(node: str, data: dict):
