@@ -15,19 +15,21 @@
 #                            'eval_duration': 2675105000           
 #                 }
 
+import pytest
+from app.ollama_utils import query_ollama_prompt
+
+def test_query_ollama_prompt_success(mocker):
+    # Mock a successful response
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {'message': 'Success'}
+    mocker.patch('app.ollama_utils.requests.post', return_value=mock_response)
 
 
-# def test_ollama_prompt():
+
+    url = 'http://example.com'
+    messages = 'Hello, Ollama!'
+    model = 'llama3.2'
+    response = query_ollama_prompt(url, messages, model)
     
-    
-#     # Mock a successful response from Ollama API 
-#     mock_post = mocker.patch('requests.post') 
-#     mock_post.return_value.status_code = 200 
-#     mock_post.return_value.json.return_value = {'result': 'test response'}
-
-#     messages = ["Hello, Ollama!", "Can you generate a prompt for me?"]
-#     model = 'llama3.2'
-
-#     response = query_ollama_prompt(messages, model) 
-#     # Ensure the POST request was called with the correct parameters 
-#     mock_post.assert_called_once_with( 'https://api.ollama.ai/generate', json={'model': model, 'messages': messages} )
+    assert response == {'message': 'Success'}

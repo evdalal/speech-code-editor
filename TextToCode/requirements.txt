@@ -3,3 +3,5 @@ requests
 firebase
 firebase-admin
 Pyrebase4
+pytest
+pytest-mock

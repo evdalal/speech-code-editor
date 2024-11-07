@@ -1,0 +1,21 @@
+{
+    'userid1': {
+        'conversations': {
+            'convid1': [
+                {
+                    'role': 'system',
+                    'content': 'You are an expert python programmer...'
+                },
+                {
+                    'role': 'user',
+                    'content': 'Write a method which...',
+                    'format': 'json'
+                }
+            ],
+            'convid2': {
+                ...
+            }
+
+        }
+    }
+}

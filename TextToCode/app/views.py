@@ -51,8 +51,10 @@ def prompt() -> Response:
     except:
         return jsonify({'error': 'Missing key in JSON. Keys must include prompt, userid, and conversationid'}), 400
 
+
+    # TODO: try, except errors from this and test
     # Get messages from firebase
-    messages = get_user_messages_from_firebase(userid)
+    messages = get_user_messages_from_firebase(userid, convoid)
     prompt_message = {
         'role': 'user',
         'content': prompt,
@@ -60,64 +62,61 @@ def prompt() -> Response:
     }
     messages.append(prompt_message)
 
+    # TODO: try, except errors from this and test
     # Send messages to Ollama
     ollama_response: Response = query_ollama_prompt(OLLAMA_API, messages)
 
     llm_message: Dict = ollama_response['message']
 
     # TODO: Add prompt and llm_message to firebase
-    try:
-        node = 'user-prompt'
-        key = add_data_to_firebase(node, data)
+    # try:
+    #     node = 'user-prompt'
+    #     key = add_data_to_firebase(node, data)
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-    print(llm_message)
-
+    # except Exception as e:
+    #     return jsonify({'error': str(e)}), 500
 
 
     # Return message
     return jsonify({'message': 'Prompt processed successfully', 'response': llm_message})
 
-@app_views.route('/add_entry', methods=['POST'])
-def add_entry() -> Any:
-    """
-    receive POST request and sent new data to Firebase
-    """
-    data = request.json
-    if not data:
-        return jsonify({'error': 'No data provided'}), 400
+# @app_views.route('/add_entry', methods=['POST'])
+# def add_entry() -> Any:
+#     """
+#     receive POST request and sent new data to Firebase
+#     """
+#     data = request.json
+#     if not data:
+#         return jsonify({'error': 'No data provided'}), 400
 
-    try:
-        node = 'user-prompt'
-        key = add_data_to_firebase(node, data)
-        return jsonify({'success': True, 'key': key}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+#     try:
+#         node = 'user-prompt'
+#         key = add_data_to_firebase(node, data)
+#         return jsonify({'success': True, 'key': key}), 200
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
 
-@app_views.route('/get_user_messages', methods=['POST'])
-def get_user_messages() -> Any:
-    """
-    Receives POST request with user ID and conversation ID as parameters
-    in the request body and returns the filtered messages from Firebase.
-    """
-    data = request.json  # Get the JSON data from the request body
+# @app_views.route('/get_user_messages', methods=['POST'])
+# def get_user_messages() -> Any:
+#     """
+#     Receives POST request with user ID and conversation ID as parameters
+#     in the request body and returns the filtered messages from Firebase.
+#     """
+#     data = request.json  # Get the JSON data from the request body
 
-    if not data:
-        return jsonify({'error': 'No data provided'}), 400
+#     if not data:
+#         return jsonify({'error': 'No data provided'}), 400
 
-    userid = data.get('userid')
-    conversation_id = data.get('conversation_id')
+#     userid = data.get('userid')
+#     conversation_id = data.get('conversation_id')
 
-    if not userid or not conversation_id:
-        return jsonify({'error': 'Missing userid or conversation_id parameter'}), 400
+#     if not userid or not conversation_id:
+#         return jsonify({'error': 'Missing userid or conversation_id parameter'}), 400
 
-    try:
-        messages = get_user_messages_from_firebase(userid, conversation_id)
-        if not messages:
-            return jsonify({'message': 'No messages found'}), 404
-        return jsonify({'success': True, 'messages': messages}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+#     try:
+#         messages = get_user_messages_from_firebase(userid, conversation_id)
+#         if not messages:
+#             return jsonify({'message': 'No messages found'}), 404
+#         return jsonify({'success': True, 'messages': messages}), 200
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
