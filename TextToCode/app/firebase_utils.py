@@ -1,4 +1,15 @@
 from typing import Dict, Any, List
+import firebase_admin
+from firebase_admin import credentials, db
+import os
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+cred_path = os.path.join(base_dir, 'configuration/serviceAccountKey.json')
+cred = credentials.Certificate(cred_path)
+default_app = firebase_admin.initialize_app(cred, {
+    'databaseURL': 'https://speech-to-code-26538-default-rtdb.firebaseio.com'
+})
+
 
 def get_user_messages_from_firebase(userid: str) -> List[Dict[str, Any]]:
     '''
@@ -51,8 +62,19 @@ def get_user_messages_from_firebase(userid: str) -> List[Dict[str, Any]]:
     return mock
 
 
-def update_user_messages_to_firebase(userid: str, messages: List[Dict] | Dict):
+def update_user_messages_to_firebase(node: str, data: dict):
     '''
-    Adds a message or list of messages to the firebase storage for a user.
+    update the existing message or list of messages to the firebase storage for a user.
     '''
     pass
+
+def add_data_to_firebase(node: str, data: dict) -> str:
+    """
+    Add data to a specified node in Firebase Realtime Database.
+    :param node: str, the database node path
+    :param data: dict, the data to be added
+    :return: str, the generated key (unique ID)
+    """
+    ref = db.reference(node)
+    new_entry = ref.push(data)
+    return new_entry.key

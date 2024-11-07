@@ -3,8 +3,11 @@ from typing import Any, Dict
 from flask.wrappers import Response
 import requests
 # from app.ollama_utils import query_ollama_prompt
-from app.firebase_utils import get_user_messages_from_firebase
 from app.ollama_utils import query_ollama_prompt
+
+from app.firebase_utils import get_user_messages_from_firebase
+from app.firebase_utils import add_data_to_firebase
+
 
 app_views = Blueprint('app_views', __name__)
 
@@ -63,8 +66,12 @@ def prompt() -> Response:
     llm_message: Dict = ollama_response['message']
 
     # TODO: Add prompt and llm_message to firebase
-    
+    try:
+        node = 'user-prompt'
+        key = add_data_to_firebase(node, data)
 
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
     print(llm_message)
@@ -73,3 +80,20 @@ def prompt() -> Response:
 
     # Return message
     return jsonify({'message': 'Prompt processed successfully', 'response': llm_message})
+
+@app_views.route('/add_entry', methods=['POST'])
+def add_entry() -> Any:
+    """
+    receive POST request and sent new data to Firebase
+    """
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    try:
+        node = 'user-prompt'
+        key = add_data_to_firebase(node, data)
+        return jsonify({'success': True, 'key': key}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

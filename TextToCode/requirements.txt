@@ -1,2 +1,5 @@
-Flask
+flask
 requests
+firebase
+firebase-admin
+Pyrebase4
