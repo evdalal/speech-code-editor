@@ -18,15 +18,13 @@ if not firebase_admin._apps:
 def test_update_and_get_user_messages():
     # Setup: Define test conversation ID, user ID, message, and file data
     conversation_id = "10086"
-    userid = "test_user_id"
-    message = {
-        "content": "Test content",
-        "role": "user"
-    }
-    file = {
+    role = "user"
+    message1 = {"prompt": "Add a method in the class called transfer to the BankAccount class to transfer money from one account to another."}
+    code = {
         1: "print('Hello World')",
         2: "print('Another line')"
     }
-
+    user_id = "6X8yN3lRPPXqzTjrfURYFaJKsUW2"
     # Perform the update
-    update_user_messages_to_firebase(conversation_id, message, file)
+    update_user_messages_to_firebase(conversation_id, user_id, message1, role)
+    update_user_messages_to_firebase(conversation_id, user_id, code, role)
