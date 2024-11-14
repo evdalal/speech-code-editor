@@ -122,3 +122,24 @@ def test_prompt_success(client, mocker):
     # Assert the HTTP status code and check the success message in the response
     assert response.status_code == 200
     assert response.get_json()['message'] == "Prompt processed successfully"
+
+
+# Test function for the /prompt endpoint
+def test_prompt_route(client):
+    # Define test data for the POST request
+    test_data = {
+        'userid': '6X8yN3lRPPXqzTjrfURYFaJKsUW2',
+        'conversationid': '10086',
+        'prompt': 'Add a method in the class called transfer to the BankAccount class to transfer money from one account to another.'
+    }
+
+    # Send the POST request to the /prompt route
+    response = client.post('/prompt', json=test_data)
+
+    # Check that the function returned a response and print the LLM response content
+    response_json = response.get_json()
+    print("Ollama Response Message:", response_json.get('response'))
+
+    # Assertions to check the response status and ensure content was processed
+    assert response.status_code == 200, "Expected status code 200"
+    assert response_json['message'] == 'Prompt processed successfully', "Expected success message"

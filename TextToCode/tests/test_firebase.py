@@ -1,6 +1,6 @@
 import os
 from firebase_admin import credentials, db, initialize_app
-from app.firebase_utils import update_user_messages_to_firebase
+from app.firebase_utils import update_user_messages_to_firebase, get_conversation_messages, get_user_messages_from_firebase
 import firebase_admin
 
 
@@ -28,3 +28,22 @@ def test_update_and_get_user_messages():
     # Perform the update
     update_user_messages_to_firebase(conversation_id, user_id, message1, role)
     update_user_messages_to_firebase(conversation_id, user_id, code, role)
+
+
+def test_get_conversation_messages():
+    # Define the conversation_id to test with
+    conversation_id = "10086"
+
+    # Directly call the function to retrieve messages from Firebase
+    result = get_conversation_messages(conversation_id)
+
+    # Print the result to verify the function's output
+    print(result)
+
+    # Check that the function returns a list
+    assert isinstance(result, list), "Expected result to be a list"
+
+    # Check that there is a valid response (not None or an empty dictionary)
+    assert result is not None, "Expected a valid result from Firebase, got None"
+
+

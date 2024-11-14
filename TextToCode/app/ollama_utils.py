@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Any, List
 from flask.wrappers import Response
 import requests
 import json
@@ -13,15 +13,17 @@ def query_ollama_models(url: str):
     '''
 
 
-def query_ollama_prompt(url: str, messages: str, model: str = 'llama3.2') -> str:
+def query_ollama_prompt(url: str, message_list: list, model: str = 'llama3.2') -> str:
     '''
     Queries Ollama given a list of messages and a model
     '''
     payload: Dict = {
         "model": model,
-        "messages": messages,
+        "messages": message_list,
         "stream": False
     }
+    print(payload)
+
     try:
         response: Response = requests.post(url, json=payload)
     except ConnectionError as e:
@@ -33,7 +35,7 @@ def query_ollama_prompt(url: str, messages: str, model: str = 'llama3.2') -> str
 
 
     # Check if the request was successful 
-    if response.status_code == 200: 
+    if response.status_code == 200:
         return response.json()
     elif response.status_code == 404:
         # Error handling for when Ollama api cannot find model or invalid model is sent
@@ -42,5 +44,8 @@ def query_ollama_prompt(url: str, messages: str, model: str = 'llama3.2') -> str
             raise OllamaModelNotFoundError(f'The model {model} could not be found.') 
         else:  # catch-all for any other would-be 404 errors
             raise OllamaResourceNotFoundError('The requested resource could not be found.')
-    else: 
+    else:
+        # DEBUG
+        print(response.json())
+        print(f"Request failed with status code {response.status_code}")
         return f'Error: {response.status_code} - {response.text}'

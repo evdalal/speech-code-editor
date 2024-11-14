@@ -4,8 +4,9 @@ from flask.wrappers import Response
 import requests
 from app.ollama_utils import query_ollama_prompt
 from app.firebase_utils import get_user_messages_from_firebase, update_user_messages_to_firebase, get_conversation_messages
+from app.firebase_utils import update_string_data_to_firebase
 from app.firebase_utils import add_data_to_firebase
-
+import json
 
 app_views = Blueprint('app_views', __name__)
 # Constant string values
@@ -40,7 +41,7 @@ def context() -> Response:
         return jsonify({'error': 'Missing key in JSON. Keys must include context, userid, and conversationid'}), 400
 
     # Send to ContextGenerator to update context in Firebase
-    update_user_messages_to_firebase(convoid, userid, context, ASSISTANT_ROLE)
+    update_user_messages_to_firebase(convoid, userid, context, USER_ROLE)
 
     # Return message
     return jsonify({'message': 'Context Received'})
@@ -48,14 +49,26 @@ def context() -> Response:
 
 @app_views.route('/prompt', methods=['POST'])
 def prompt() -> Response:
+    """
+    Endpoint to handle a user prompt request. This function:
+    1. processes the prompt
+    2. fetches conversation context from Firebase,
+    3. sends the prompt and context to Ollama for response
+    4. stores the LLM response back to Firebase.
+
+    :return: JSON response containing a success message and the LLM response.
+    """
+
     print('here')
 
+    # Retrieve JSON data from the POST request
     data: Dict = request.json
 
     # Guards to ensure properly formed JSON
-    if data is None: 
-        return jsonify({'error': 'Invalid JSON'}), 400 
-    
+    if data is None:
+        return jsonify({'error': 'Invalid JSON'}), 400
+
+    # Extract required fields from the JSON request data
     try:
         userid: str = data['userid']
         convoid: str = data['conversationid']
@@ -63,34 +76,41 @@ def prompt() -> Response:
     except KeyError:
         return jsonify({'error': 'Missing key in JSON. Keys must include prompt, userid, and conversationid'}), 400
 
+    # Gets prior context for the conversation
+    messages_list = get_conversation_messages(convoid)
 
-    # TODO: try, except errors from this and test
-    # Get messages from firebase
-    messages = get_conversation_messages(convoid)
-    prompt_message = {
-        'role': USER_ROLE,
-        'content': prompt,
-        'format': 'json'
+    # Update Firebase with the new user prompt message
+    update_string_data_to_firebase(convoid, userid, prompt, USER_ROLE)
+    new_prompt_dict = {
+        "role": USER_ROLE,
+        "content": prompt
     }
 
-    messages.append(prompt_message)
+    # Append the current user prompt as a new dictionary entry in messages_list
+    messages_list.append(new_prompt_dict)
 
-    # TODO: try, except errors from this and test
-    # Send messages to Ollama
-    ollama_response: Response = query_ollama_prompt(OLLAMA_API, messages)
-
-    llm_message: Dict = ollama_response['message']
-
-    # TODO: Add prompt and llm_message to firebase
+    # Send structured messages to Ollama
     try:
-        update_user_messages_to_firebase(convoid, userid, llm_message, ASSISTANT_ROLE)
-
+        ollama_response = query_ollama_prompt(OLLAMA_API, messages_list)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Ollama API request failed: {str(e)}'}), 500
 
+    # Process the response from Ollama
+    # Check if Ollama returned a proper response
+    if isinstance(ollama_response, dict) and "message" in ollama_response:
+        llm_message = ollama_response["message"]
+    else:
+        error_message = ollama_response if isinstance(ollama_response, str) else "Unexpected Ollama response format"
+        return jsonify({'error': f'Ollama API error: {error_message}'}), 500
 
-    # Return message
-    return jsonify({'message': 'Prompt processed successfully', 'response': llm_message})
+    # Update Firebase with the LLM response
+    try:
+        update_user_messages_to_firebase(convoid, userid, ollama_response, ASSISTANT_ROLE)
+    except Exception as e:
+        return jsonify({'error': f'Error updating Firebase: {str(e)}'}), 500
+
+    # Return success message and response
+    return jsonify({'message': 'Prompt processed successfully', 'response': ollama_response})
 
 
 
