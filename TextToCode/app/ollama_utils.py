@@ -31,9 +31,6 @@ def query_ollama_prompt(url: str, message_list: list, model: str = 'llama3.2') -
         raise OllamaConnectionError('ERROR: Ollama server failed to connect.')
 
     # TODO: Process ollama query and throw exceptions if we cant interpret data
-
-
-
     # Check if the request was successful 
     if response.status_code == 200:
         return response.json()

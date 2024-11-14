@@ -2,7 +2,7 @@ import pytest
 from flask import Flask, jsonify
 from flask.wrappers import Response
 from app import create_app
-
+import json
 # TODO: add comments
 
 def test_context(client):
@@ -143,3 +143,4 @@ def test_prompt_route(client):
     # Assertions to check the response status and ensure content was processed
     assert response.status_code == 200, "Expected status code 200"
     assert response_json['message'] == 'Prompt processed successfully', "Expected success message"
+

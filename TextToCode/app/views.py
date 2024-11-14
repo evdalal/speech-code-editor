@@ -95,17 +95,9 @@ def prompt() -> Response:
     except Exception as e:
         return jsonify({'error': f'Ollama API request failed: {str(e)}'}), 500
 
-    # Process the response from Ollama
-    # Check if Ollama returned a proper response
-    if isinstance(ollama_response, dict) and "message" in ollama_response:
-        llm_message = ollama_response["message"]
-    else:
-        error_message = ollama_response if isinstance(ollama_response, str) else "Unexpected Ollama response format"
-        return jsonify({'error': f'Ollama API error: {error_message}'}), 500
-
     # Update Firebase with the LLM response
     try:
-        update_user_messages_to_firebase(convoid, userid, ollama_response, ASSISTANT_ROLE)
+        update_string_data_to_firebase(convoid, userid, ollama_response['message']['content'], ASSISTANT_ROLE)
     except Exception as e:
         return jsonify({'error': f'Error updating Firebase: {str(e)}'}), 500
 
