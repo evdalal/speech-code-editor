@@ -63,7 +63,8 @@ def get_conversation_messages(conversation_id: str) -> list:
         # Reference the 'history' node under the specified conversation ID
         ref = db.reference(f'user-conversation/{conversation_id}/history')
 
-        # Retrieve messages ordered by key (timestamp) and get the latest ones in reverse order
+        # Retrieve messages ordered by key (timestamp) and get the latest ones in reverse order.
+        # Get 20 latest user conversation history block
         messages = ref.order_by_key().limit_to_last(20).get()
 
         # If no messages exist, return an empty list
