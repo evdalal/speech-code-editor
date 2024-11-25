@@ -34,6 +34,12 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 
 class TranscriptionWorker:
+    """
+    The TranscriptionWorker class is responsible for managing a transcription process in a separate worker thread or
+    process.
+    It initializes and manages a transcription model, handles communication with a parent process via a connection,
+    and processes audio data for transcription.
+    """
     def __init__(self, conn, stdout_pipe,
                  model_path, compute_type, gpu_device_index, device,
                  ready_event, shutdown_event, interrupt_stop_event,
@@ -90,7 +96,7 @@ class TranscriptionWorker:
 
         __builtins__['print'] = self.custom_print
 
-        print(f"Initializing Faster Whisper Main transcription model from path: "
+        print(f"Initializing Faster Whisper refined transcription model from path: "
               f"'{self.model_path}' on device: '{self.device}' using compute type: '{self.compute_type}'")
 
         try:
@@ -101,12 +107,12 @@ class TranscriptionWorker:
                 device_index=self.gpu_device_index,
             )
         except Exception as e:
-            logging.exception(f"Error initializing Faster Whisper Main transcription model: {e}")
+            logging.exception(f"Error initializing Faster Whisper refined transcription model: {e}")
             raise
 
         self.ready_event.set()
 
-        print("Faster Whisper Main transcription model initialized successfully")
+        print("Faster Whisper refined transcription model initialized successfully")
 
         # Start a background thread to poll for incoming data
         polling_thread = threading.Thread(target=self.poll_connection)
@@ -296,7 +302,7 @@ class AudioTranscriber:
 
         # Determine the device for running the model (use GPU if available, otherwise fallback to CPU)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
+        # self.device = "cpu"
         self.transcript_process = start_thread(
             target=AudioTranscriber._transcription_worker,
             args=(
@@ -723,7 +729,7 @@ class AudioTranscriber:
 
     def transcribe(self):
         """
-        Transcribes audio captured by this class instance using the `faster_whisper` model.
+        Transcribes audio captured by this class instance using the Faster Whisper model.
 
         Automatically starts recording when voice activity is detected if not manually
         started using `recorder.start()`. Automatically stops recording when no voice
@@ -743,7 +749,6 @@ class AudioTranscriber:
             try:
                 if self.transcribe_count == 0:
                     logging.debug("Adding transcription request, no early transcription started")
-                    start_time = time.time()  # Start timing
                     self.parent_transcription_pipe.send((self.audio, self.language))
                     self.transcribe_count += 1
 
@@ -769,9 +774,9 @@ class AudioTranscriber:
                 logging.error(f"Error during transcription: {str(e)}")
                 raise e
 
-    def text(self, on_transcription_finished=None):
+    def voice_to_text(self, on_transcription_finished=None):
         """
-        Transcribes audio captured by this class instance using the `faster_whisper` model.
+        Transcribes audio captured by this class instance using the Faster Whisper model.
 
         - Automatically starts recording upon detecting voice activity if not manually
           started using `recorder.start()`.

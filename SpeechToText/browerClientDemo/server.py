@@ -29,11 +29,11 @@ if __name__ == '__main__':
         print(f"\r\nreal-time: {text}", flush=True, end='')
 
     recorder_config = {
-        'model': 'large-v2',
+        'model': 'medium.en',
         'language': 'en',
         'silero_sensitivity': 0.4,
         'webrtc_sensitivity': 2,
-        'post_speech_silence_time': 0.5,
+        'post_speech_silence_time': 0.3,
         'min_recording_duration': 0,
         'min_recording_gap': 0,
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         print("\nReal-Time Speech to Text initialized")
         recorder_ready.set()
         while True:
-            full_sentence = recorder.text()
+            full_sentence = recorder.voice_to_text()
             asyncio.new_event_loop().run_until_complete(
                 send_to_client(
                     json.dumps({
