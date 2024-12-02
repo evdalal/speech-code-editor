@@ -1,4 +1,5 @@
-let socket = new WebSocket("ws://127.0.0.1:9001");
+// remote server: ws://142.112.54.19:43102
+let socket = new WebSocket("ws://142.112.54.19:43102");
 let displayDiv = document.getElementById('textDisplay');
 let server_available = false;
 let mic_available = false;
@@ -7,7 +8,8 @@ let fullSentences = [];
 const serverCheckInterval = 5000; // Check every 5 seconds
 
 function connectToServer() {
-    socket = new WebSocket("ws://127.0.0.1:9001");
+    // ws://142.112.54.19:43102
+    socket = new WebSocket("ws://142.112.54.19:43102");
 
     socket.onopen = function(event) {
         server_available = true;
