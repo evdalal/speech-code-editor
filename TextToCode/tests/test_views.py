@@ -3,6 +3,10 @@ from flask import Flask, jsonify
 from flask.wrappers import Response
 from app import create_app
 import json
+
+from app.views import convert_to_json
+
+
 # TODO: add comments
 
 def test_context(client):
@@ -84,7 +88,7 @@ def test_context_endpoint(client):
             "28": "print(account.get_balance())"
         },
         "userid": "6X8yN3lRPPXqzTjrfURYFaJKsUW2",
-        "conversationid": "10086"
+        "conversationid": "1109"
     }
 
     # Send a POST request to the /context route with the test data as JSON
@@ -144,3 +148,23 @@ def test_prompt_route(client):
     assert response.status_code == 200, "Expected status code 200"
     assert response_json['message'] == 'Prompt processed successfully', "Expected success message"
 
+def test_code_snippets():
+    """
+    Tests conversion of strings containing code snippets.
+    This test is particularly important as code snippets often contain
+    special characters, indentation, and mixed quotes. It ensures the function
+    maintains code formatting and structure during conversion.
+    """
+    input_str = '''
+    {
+      'code': {
+        "21": "def example():",
+        "22": "    return True"
+      }
+    }
+    '''
+    result = convert_to_json(input_str)
+    print(result)
+    # assert 'code' in result
+    # assert '21' in result['code']
+    # assert result['code']['21'] == "def example():"

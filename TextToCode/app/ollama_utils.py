@@ -3,7 +3,7 @@ from flask.wrappers import Response
 import requests
 import json
 from app.exceptions import OllamaConnectionError, OllamaModelNotFoundError, OllamaResourceNotFoundError
-
+from requests.exceptions import ConnectionError
 
 
 
@@ -13,36 +13,38 @@ def query_ollama_models(url: str):
     '''
 
 
-def query_ollama_prompt(url: str, message_list: list, model: str = 'llama3.2') -> str:
+def query_ollama_prompt(url: str, message_list: list, model: str = 'llama3.2') -> dict:
     '''
     Queries Ollama given a list of messages and a model
     '''
-    payload: Dict = {
+    payload = {
         "model": model,
         "messages": message_list,
         "stream": False
     }
-    print(payload)
-
     try:
-        response: Response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload)
     except ConnectionError as e:
         print(e)
-        raise OllamaConnectionError('ERROR: Ollama server failed to connect.')
+        raise Exception('ERROR: Ollama server failed to connect.')
 
-    # TODO: Process ollama query and throw exceptions if we cant interpret data
-    # Check if the request was successful 
     if response.status_code == 200:
-        return response.json()
+        try:
+            # message_content = response.json().get('message')
+            return response.json()  # parsing to json format
+        except ValueError:
+            # Handle nested JSON or malformed responses
+            raw_text = response.text
+            print("Malformed JSON response. Raw content:", raw_text)
+            try:
+                return json.loads(raw_text)  # Secondary parsing
+            except json.JSONDecodeError:
+                raise Exception("Unable to parse response content as JSON.")
     elif response.status_code == 404:
-        # Error handling for when Ollama api cannot find model or invalid model is sent
-        error_message: str = response.json().get('error', 'Resource not found') 
-        if 'not found, try pulling it first' in error_message:
-            raise OllamaModelNotFoundError(f'The model {model} could not be found.') 
-        else:  # catch-all for any other would-be 404 errors
-            raise OllamaResourceNotFoundError('The requested resource could not be found.')
+        error_message = response.json().get('error', 'Resource not found')
+        if 'not found' in error_message:
+            raise Exception(f'Model {model} could not be found.')
+        raise Exception('Resource not found.')
     else:
-        # DEBUG
-        print(response.json())
         print(f"Request failed with status code {response.status_code}")
-        return f'Error: {response.status_code} - {response.text}'
+        return {"error": f"{response.status_code} - {response.text}"}

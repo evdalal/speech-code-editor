@@ -1,19 +1,23 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from typing import Any, Dict
 from flask.wrappers import Response
 import requests
 from app.ollama_utils import query_ollama_prompt
-from app.firebase_utils import get_user_messages_from_firebase, update_user_messages_to_firebase, get_conversation_messages
+from app.firebase_utils import get_user_messages_from_firebase, update_user_messages_to_firebase, \
+    get_conversation_messages
 from app.firebase_utils import update_string_data_to_firebase
 from app.firebase_utils import add_data_to_firebase
 import json
+import logging
+import ast
+import re
 
 app_views = Blueprint('app_views', __name__)
 # Constant string values
 ASSISTANT_ROLE = "assistant"
 USER_ROLE = "user"
-
-OLLAMA_API = 'http://127.0.0.1:11434/api/chat'
+# host machine's ip address
+OLLAMA_API = 'http://172.17.0.1:11434/api/chat'
 
 
 @app_views.route('/context', methods=['POST'])
@@ -59,8 +63,6 @@ def prompt() -> Response:
     :return: JSON response containing a success message and the LLM response.
     """
 
-    print('here')
-
     # Retrieve JSON data from the POST request
     data: Dict = request.json
 
@@ -95,36 +97,63 @@ def prompt() -> Response:
     except Exception as e:
         return jsonify({'error': f'Ollama API request failed: {str(e)}'}), 500
 
+    response_content = ollama_response['message']['content']
+    # transfer the response content to json format
+    json_response = convert_to_json(response_content)
     # Update Firebase with the LLM response
     try:
-        update_string_data_to_firebase(convoid, userid, ollama_response['message']['content'], ASSISTANT_ROLE)
+        update_string_data_to_firebase(convoid, userid, response_content, ASSISTANT_ROLE)
     except Exception as e:
         return jsonify({'error': f'Error updating Firebase: {str(e)}'}), 500
+    # DEBUG
+    # current_app.logger.info(response_content)
+    # current_app.logger.info(json_response)
+    # Return core content from ollama
+    return json_response
 
-    # Return success message and response
-    return jsonify({'message': 'Prompt processed successfully', 'response': ollama_response})
 
+def convert_to_json(input_string: str) -> dict:
+    """
+    Converts a string representation of a JSON-like object into a proper JSON object.
 
+    Args:
+        input_string (str): The input string to be converted.
 
-# # testing endpoint
-# @app_views.route('/add_entry', methods=['POST'])
-# def add_entry() -> Any:
-#     """
-#     receive POST request and sent new data to Firebase
-#     """
-#     data = request.json
-#     # Extract conversation_id from data
-#     conversation_id = data.pop('conversation_id', None)
-#
-#     if not data:
-#         return jsonify({'error': 'No data provided'}), 400
-#
-#     try:
-#         node = 'user-conversation'
-#         key = add_data_to_firebase(node, data, conversation_id)
-#         return jsonify({'success': True, 'key': key}), 200
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 500
+    Returns:
+        dict: A dictionary representation of the JSON.
+    """
+
+    try:
+        # Replace escaped newlines with actual newlines
+        processed_string = input_string.replace('\\n', '\n')
+
+        # Attempt to parse the processed string as JSON
+        return json.loads(processed_string)
+
+    except json.JSONDecodeError as e:
+        current_app.logger.error(f"Initial JSON decoding failed: {e}. Attempting to sanitize input.")
+        try:
+            # Sanitize input: Replace single quotes with double quotes for valid JSON
+            sanitized_string = processed_string.replace("'", '"')
+
+            # Detect and fix unescaped newlines within strings
+            sanitized_string = re.sub(r"(?<!\\)\n", "\\n", sanitized_string)
+
+            # Attempt parsing again with the sanitized string
+            return json.loads(sanitized_string)
+
+        except json.JSONDecodeError as e2:
+            current_app.logger.error(f"Sanitized JSON decoding failed: {e2}. Attempting literal_eval.")
+
+            try:
+                # Fallback: Use ast.literal_eval for Python-style dictionary strings
+                return ast.literal_eval(sanitized_string)
+
+            except (ValueError, SyntaxError) as e3:
+                current_app.logger.error(f"Literal evaluation failed: {e3}. Attempting to recover with final fallback.")
+
+                # Final fallback: Return raw input as a wrapped JSON
+                return input_string
 
 
 # testing endpoint
