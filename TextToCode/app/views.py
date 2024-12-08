@@ -96,7 +96,6 @@ def prompt() -> Response:
         ollama_response = query_ollama_prompt(OLLAMA_API, messages_list)
     except Exception as e:
         return jsonify({'error': f'Ollama API request failed: {str(e)}'}), 500
-
     response_content = ollama_response['message']['content']
     # transfer the response content to json format
     json_response = convert_to_json(response_content)
@@ -105,16 +104,26 @@ def prompt() -> Response:
         update_string_data_to_firebase(convoid, userid, response_content, ASSISTANT_ROLE)
     except Exception as e:
         return jsonify({'error': f'Error updating Firebase: {str(e)}'}), 500
-    # DEBUG
-    # current_app.logger.info(response_content)
-    # current_app.logger.info(json_response)
-    # Return core content from ollama
-    return json_response
+    if isinstance(json_response, str):
+        return json_response
+    response_data = {
+        'success': True,
+        'data': {
+            'code': json_response.get('code', {}),
+            'explanation': json_response.get('explanation', ''),
+            'type': json_response.get('type', ''),
+            'modify_range': json_response.get('modify-range'),
+        }
+    }
+    # Debug: Log the type and content of json_response
+    current_app.logger.debug(f"json_response type: {type(json_response)}, content: {json_response}")
+    return jsonify(response_data)
 
 
 def convert_to_json(input_string: str) -> dict:
     """
     Converts a string representation of a JSON-like object into a proper JSON object.
+    Ensures single quotes are replaced with escaped double quotes and handles f-strings properly.
 
     Args:
         input_string (str): The input string to be converted.
@@ -122,38 +131,18 @@ def convert_to_json(input_string: str) -> dict:
     Returns:
         dict: A dictionary representation of the JSON.
     """
-
     try:
-        # Replace escaped newlines with actual newlines
+        # Step 1: Replace escaped newlines with actual newlines
         processed_string = input_string.replace('\\n', '\n')
+        processed_string = processed_string.replace("'", "\\\"")
 
-        # Attempt to parse the processed string as JSON
+        # Step 3: Attempt to parse as JSON
         return json.loads(processed_string)
 
     except json.JSONDecodeError as e:
-        current_app.logger.error(f"Initial JSON decoding failed: {e}. Attempting to sanitize input.")
-        try:
-            # Sanitize input: Replace single quotes with double quotes for valid JSON
-            sanitized_string = processed_string.replace("'", '"')
+        current_app.logger.error(f"JSON Decode Error: {str(e)}")
+        return input_string
 
-            # Detect and fix unescaped newlines within strings
-            sanitized_string = re.sub(r"(?<!\\)\n", "\\n", sanitized_string)
-
-            # Attempt parsing again with the sanitized string
-            return json.loads(sanitized_string)
-
-        except json.JSONDecodeError as e2:
-            current_app.logger.error(f"Sanitized JSON decoding failed: {e2}. Attempting literal_eval.")
-
-            try:
-                # Fallback: Use ast.literal_eval for Python-style dictionary strings
-                return ast.literal_eval(sanitized_string)
-
-            except (ValueError, SyntaxError) as e3:
-                current_app.logger.error(f"Literal evaluation failed: {e3}. Attempting to recover with final fallback.")
-
-                # Final fallback: Return raw input as a wrapped JSON
-                return input_string
 
 
 # testing endpoint
