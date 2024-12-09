@@ -1,24 +1,35 @@
-FROM nvidia/cuda:12.3.0-base-ubuntu22.04 as gpu
+# GPU Image
+FROM nvidia/cuda:12.4.0-base-ubuntu22.04 as gpu
 
 WORKDIR /app
 
+# Update and install dependencies
 RUN apt-get update -y && \
-  apt-get install -y python3 python3-pip libcudnn8 libcudnn8-dev libcublas-12-4 portaudio19-dev
+    apt-get install -y python3 python3-pip libcudnn9-cuda-12=9.5.1.17-1 libcublas-12-4 portaudio19-dev
 
+# Install required Python packages
 RUN pip3 install torch==2.3.0 torchaudio==2.3.0
 
+# Copy the application files
 COPY requirements-gpu.txt /app/requirements-gpu.txt
 RUN pip3 install -r /app/requirements-gpu.txt
-
-RUN mkdir browserClientDemo
+RUN mkdir /app/browserClientDemo
 COPY browserClientDemo/server.py /app/browserClientDemo/server.py
 COPY transcriber /app/transcriber
 COPY config.py /app/config.py
 COPY utils.py /app/utils.py
 
+# Set environment variables
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+RUN echo 'export PYTHONPATH="${PYTHONPATH}:/app"' >> ~/.bashrc
+
+# Adjust LD_LIBRARY_PATH for libcudnn
+RUN find / -name 'libcudnn_ops*.so*' -exec echo "Adding {} to LD_LIBRARY_PATH" \; -exec sh -c 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(dirname {})' \;
+
+# Expose required port
 EXPOSE 9001
-ENV PYTHONPATH "${PYTHONPATH}:/app"
-RUN export PYTHONPATH="${PYTHONPATH}:/app"
+
+# Command to run the application
 CMD ["python3", "browserClientDemo/server.py"]
 
 # --------------------------------------------
