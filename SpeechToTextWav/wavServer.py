@@ -1,4 +1,5 @@
 import os
+
 # Environment Settings
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -7,7 +8,7 @@ import asyncio
 import websockets
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
-import wave
+import soundfile as sf
 from faster_whisper import WhisperModel
 import torch
 
@@ -28,6 +29,7 @@ semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 # ThreadPoolExecutor for blocking operations
 executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TRANSCRIPTIONS)
 
+
 async def transcribe_audio(audio_bytes: bytes) -> str:
     """Transcribe audio data using Faster Whisper model."""
     async with semaphore:
@@ -40,29 +42,32 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
         transcription = " ".join(segment.text for segment in segments)
         return transcription
 
+
 async def process_wav(websocket, path):
     client_ip = websocket.remote_address[0]
     logger.info(f"Connection opened from {client_ip}")
-    
+
     try:
         async for message in websocket:
             if isinstance(message, bytes):
                 audio_bytes = message
+
                 # Validate WAV format
                 try:
-                    with wave.open(BytesIO(audio_bytes), 'rb') as audio:
-                        if audio.getnchannels() != 1:
+                    with sf.SoundFile(BytesIO(audio_bytes)) as audio:
+                        if audio.channels != 1:
                             error_msg = "Error: Audio must be mono."
                             await websocket.send(json.dumps({'error': error_msg}))
                             logger.warning(f"{client_ip} - {error_msg}")
                             continue
-                        if audio.getsampwidth() not in [2, 3, 4]:
-                            error_msg = "Error: Unsupported sample width."
+                        if audio.subtype not in ['PCM_16', 'PCM_24', 'PCM_32']:
+                            error_msg = "Error: Unsupported audio format."
                             await websocket.send(json.dumps({'error': error_msg}))
                             logger.warning(f"{client_ip} - {error_msg}")
                             continue
-                        # Additional validations can be added here
-                except wave.Error as e:
+                        # Process valid audio
+                        logging.info(f"Received valid WAV audio, duration: {len(audio) / audio.samplerate:.2f} seconds")
+                except RuntimeError as e:
                     error_msg = f"Error: Invalid WAV file. {e}"
                     await websocket.send(json.dumps({'error': error_msg}))
                     logger.warning(f"{client_ip} - {error_msg}")
@@ -93,6 +98,7 @@ async def process_wav(websocket, path):
     finally:
         logger.info(f"Connection with {client_ip} closed.")
 
+
 async def main():
     server = await websockets.serve(
         process_wav,
@@ -113,6 +119,7 @@ async def main():
         await server.wait_closed()
         executor.shutdown(wait=True)
         logger.info("WebSocket server shut down gracefully.")
+
 
 if __name__ == "__main__":
     try:
