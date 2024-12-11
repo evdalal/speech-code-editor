@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAV File Transcription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        #fileInput {
+            margin-bottom: 10px;
+        }
+        #sendButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+        #sendButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #sendButton:hover:enabled {
+            background-color: #45a049;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-width: 600px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>WAV File Transcription</h1>
+    <p>Select a WAV file to transcribe. The transcription will appear below once the process is complete.</p>
+    <input type="file" id="fileInput" accept=".wav" />
+    <button id="sendButton" disabled>Send to Server</button>
+    <h2>Transcription:</h2>
+    <pre id="output">No transcription yet.</pre>
+
+    <script>
+        // WebSocket connection
+        const socket = new WebSocket('ws://localhost:8080');
+
+        // Elements
+        const fileInput = document.getElementById('fileInput');
+        const sendButton = document.getElementById('sendButton');
+        const output = document.getElementById('output');
+
+        // Enable the send button once a file is selected
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                sendButton.disabled = false;
+            } else {
+                sendButton.disabled = true;
+            }
+        });
+
+        // Send the WAV file to the server when the button is clicked
+        sendButton.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a WAV file.');
+                return;
+            }
+
+            // Read the file as binary data
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+
+                // Send the binary data to the WebSocket server
+                socket.send(arrayBuffer);
+                output.textContent = 'Sending file to the server for transcription...';
+                sendButton.disabled = true; // Disable button to prevent multiple sends
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Handle messages from the server
+        socket.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.transcription) {
+                    output.textContent = data.transcription;
+                } else if (data.error) {
+                    output.textContent = data.error;
+                } else {
+                    output.textContent = 'Received unknown response from the server.';
+                }
+            } catch (e) {
+                console.error('Error parsing message from server:', e);
+                output.textContent = 'Received invalid data from the server.';
+            } finally {
+                sendButton.disabled = false; // Re-enable the button after response
+            }
+        };
+
+        // Handle WebSocket connection open
+        socket.onopen = function() {
+            console.log('WebSocket connection established.');
+        };
+
+        // Handle WebSocket connection close
+        socket.onclose = function(event) {
+            console.log('WebSocket connection closed:', event);
+            output.textContent = 'WebSocket connection closed. Please reload the page.';
+            sendButton.disabled = true;
+        };
+
+        // Handle WebSocket errors
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            output.textContent = 'Error communicating with the server.';
+            sendButton.disabled = true;
+        };
+    </script>
+</body>
+</html>
