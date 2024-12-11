@@ -81,7 +81,7 @@ def get_conversation_messages(conversation_id: str) -> list:
         return []
 
 
-
+# backup in case need userid
 def get_user_messages_from_firebase(userid: str, conversation_id: str) -> list[Any] | list[object]:
     '''
     Queries Firebase Realtime Database and returns the list of user messages.
@@ -110,6 +110,7 @@ def get_user_messages_from_firebase(userid: str, conversation_id: str) -> list[A
         print(f"Error retrieving messages for user {userid} with conversation ID {conversation_id}: {str(e)}")
         return []
 
+# helper
 def dict_to_formatted_string(data: dict) -> str:
     """
     Converts a dictionary with line-number keys and code-line values to a formatted long string, sorted by line numbers.
@@ -129,6 +130,7 @@ def dict_to_formatted_string(data: dict) -> str:
     # Join all parts into a single string
     return ''.join(lines)
 
+# code file
 # TODO
 def update_user_messages_to_firebase(conversation_id: str, user_id: str, data: dict, role: str):
     '''
@@ -139,6 +141,7 @@ def update_user_messages_to_firebase(conversation_id: str, user_id: str, data: d
     update_string_data_to_firebase(conversation_id, user_id, formatted_string, role)
 
 
+# for prompt / string
 # save the data in string format to firebase database
 def update_string_data_to_firebase(conversation_id: str, user_id: str, data: str, role: str):
     '''
@@ -175,6 +178,7 @@ def update_string_data_to_firebase(conversation_id: str, user_id: str, data: str
     ref.set(history_data)
     print(f"Message updated successfully for conversation {conversation_id} at {ref_path}")
 
+# delete
 def add_data_to_firebase(node: str, data: dict, custom_key: str = None) -> str:
     """
     Check whether  
