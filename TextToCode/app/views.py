@@ -1,19 +1,23 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from typing import Any, Dict
 from flask.wrappers import Response
 import requests
 from app.ollama_utils import query_ollama_prompt
-from app.firebase_utils import get_user_messages_from_firebase, update_user_messages_to_firebase, get_conversation_messages
+from app.firebase_utils import get_user_messages_from_firebase, update_user_messages_to_firebase, \
+    get_conversation_messages
 from app.firebase_utils import update_string_data_to_firebase
 from app.firebase_utils import add_data_to_firebase
 import json
+import logging
+import ast
+import re
 
 app_views = Blueprint('app_views', __name__)
 # Constant string values
 ASSISTANT_ROLE = "assistant"
 USER_ROLE = "user"
-
-OLLAMA_API = 'http://127.0.0.1:11434/api/chat'
+# host machine's ip address
+OLLAMA_API = 'http://172.17.0.1:11434/api/chat'
 
 
 @app_views.route('/context', methods=['POST'])
@@ -59,8 +63,6 @@ def prompt() -> Response:
     :return: JSON response containing a success message and the LLM response.
     """
 
-    print('here')
-
     # Retrieve JSON data from the POST request
     data: Dict = request.json
 
@@ -94,37 +96,69 @@ def prompt() -> Response:
         ollama_response = query_ollama_prompt(OLLAMA_API, messages_list)
     except Exception as e:
         return jsonify({'error': f'Ollama API request failed: {str(e)}'}), 500
-
+    response_content = ollama_response['message']['content']
+    # transfer the response content to json format
+    json_response = convert_to_json(response_content)
     # Update Firebase with the LLM response
     try:
-        update_string_data_to_firebase(convoid, userid, ollama_response['message']['content'], ASSISTANT_ROLE)
+        update_string_data_to_firebase(convoid, userid, response_content, ASSISTANT_ROLE)
     except Exception as e:
         return jsonify({'error': f'Error updating Firebase: {str(e)}'}), 500
+    if isinstance(json_response, str):
+        return json_response
+    response_data = {
+        'success': True,
+        'data': {
+            'code': json_response.get('code', {}),
+            'explanation': json_response.get('explanation', ''),
+            'type': json_response.get('type', ''),
+            'modify_range': json_response.get('modify-range'),
+        }
+    }
+    # Debug: Log the type and content of json_response
+    # current_app.logger.debug(f"json_response type: {type(json_response)}, content: {json_response}")
+    return jsonify(response_data)
 
-    # Return success message and response
-    return jsonify({'message': 'Prompt processed successfully', 'response': ollama_response})
+
+def convert_to_json(input_string: str) -> dict:
+    """
+    Converts a string representation of a JSON-like object into a proper JSON object.
+    Ensures single quotes are replaced with escaped double quotes and handles f-strings properly.
+
+    Args:
+        input_string (str): The input string to be converted.
+
+    Returns:
+        dict: A dictionary representation of the JSON.
+    """
+    try:
+        # Step 1: Replace escaped newlines with actual newlines
+        processed_string = input_string.replace('\\n', '\n')
+        processed_string = re.sub(r"(?<!\\)'", '"', processed_string)
+        processed_string = processed_string.replace("\\'", "'")
+
+        # Step 3: Attempt to parse as JSON
+        return json.loads(processed_string)
 
 
+    except json.JSONDecodeError as e:
 
-# # testing endpoint
-# @app_views.route('/add_entry', methods=['POST'])
-# def add_entry() -> Any:
-#     """
-#     receive POST request and sent new data to Firebase
-#     """
-#     data = request.json
-#     # Extract conversation_id from data
-#     conversation_id = data.pop('conversation_id', None)
-#
-#     if not data:
-#         return jsonify({'error': 'No data provided'}), 400
-#
-#     try:
-#         node = 'user-conversation'
-#         key = add_data_to_firebase(node, data, conversation_id)
-#         return jsonify({'success': True, 'key': key}), 200
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 500
+        current_app.logger.error(f"JSON Decode Error: {str(e)}")
+        try:
+            # Step 4: Remove everything before the first "{" and after the last "}"
+            start_index = input_string.find('{')
+            end_index = input_string.rfind('}')
+            if start_index != -1 and end_index != -1:
+                trimmed_string = input_string[start_index:end_index + 1]
+                current_app.logger.info(f"Trimmed string for retry: {trimmed_string}")
+                # Retry parsing the trimmed string
+                return json.loads(trimmed_string)
+            else:
+                current_app.logger.error("No valid JSON structure found in the input string.")
+                return input_string
+        except json.JSONDecodeError as inner_e:
+            current_app.logger.error(f"Retry JSON Decode Error: {str(inner_e)}")
+            return input_string
 
 
 # testing endpoint
