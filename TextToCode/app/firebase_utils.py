@@ -48,11 +48,11 @@ Your output must be a valid JSON object. Use the following format exactly:
     "modify-range": [<Start Line Num>, <End Line Num>] or null
 }
 Additional Notes:
-1. Output must be valid JSON: Double-check to ensure proper escaping of characters like " and \.
+1. Output must be valid JSON: Double-check to ensure proper escaping of characters like ", ' and \.
 2. Do not include extra text or explanations outside the JSON object.
 3. Ensure correct formatting, spacing, and syntax in the generated Python code to maintain Python standards.
 4. If the input context requires a modification, carefully indicate the exact line numbers to be replaced in the "modify-range" field.
-
+5. All comments must be on a separate line, enclosed by a separate line number key.
 """
 
 

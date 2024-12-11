@@ -116,7 +116,7 @@ def prompt() -> Response:
         }
     }
     # Debug: Log the type and content of json_response
-    current_app.logger.debug(f"json_response type: {type(json_response)}, content: {json_response}")
+    # current_app.logger.debug(f"json_response type: {type(json_response)}, content: {json_response}")
     return jsonify(response_data)
 
 
@@ -134,15 +134,31 @@ def convert_to_json(input_string: str) -> dict:
     try:
         # Step 1: Replace escaped newlines with actual newlines
         processed_string = input_string.replace('\\n', '\n')
-        processed_string = processed_string.replace("'", "\\\"")
+        processed_string = re.sub(r"(?<!\\)'", '"', processed_string)
+        processed_string = processed_string.replace("\\'", "'")
 
         # Step 3: Attempt to parse as JSON
         return json.loads(processed_string)
 
-    except json.JSONDecodeError as e:
-        current_app.logger.error(f"JSON Decode Error: {str(e)}")
-        return input_string
 
+    except json.JSONDecodeError as e:
+
+        current_app.logger.error(f"JSON Decode Error: {str(e)}")
+        try:
+            # Step 4: Remove everything before the first "{" and after the last "}"
+            start_index = input_string.find('{')
+            end_index = input_string.rfind('}')
+            if start_index != -1 and end_index != -1:
+                trimmed_string = input_string[start_index:end_index + 1]
+                current_app.logger.info(f"Trimmed string for retry: {trimmed_string}")
+                # Retry parsing the trimmed string
+                return json.loads(trimmed_string)
+            else:
+                current_app.logger.error("No valid JSON structure found in the input string.")
+                return input_string
+        except json.JSONDecodeError as inner_e:
+            current_app.logger.error(f"Retry JSON Decode Error: {str(inner_e)}")
+            return input_string
 
 
 # testing endpoint
