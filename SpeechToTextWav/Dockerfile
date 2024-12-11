@@ -1,5 +1,5 @@
 # GPU Image
-FROM nvidia/cuda:12.4.0-base-ubuntu22.04 as gpu
+FROM nvidia/cuda:12.2.0-base-ubuntu22.04 as gpu
 
 WORKDIR /app
 
