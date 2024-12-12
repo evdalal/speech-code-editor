@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  rtstt:
+    build:
+      context: .
+      # choose cpu mode or gpu mode to accelerate speech to text processes
+      target: gpu
+    image: rtstt
+    container_name: rtstt
+    volumes:
+      - ./transcriber:/app/transcriber
+      - ./browserClientDemo:/app/browserClientDemo
+      - cache:/root/.cache
+    ports:
+      - "9001:9001"
+
+# uncomment this part when using gpu to accelerate
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - capabilities: ["gpu"]
+
+volumes:
+  cache:
+#  nginx:
+#    image: nginx:latest
+#    container_name: nginx_web
+#    ports:
+#      - "8081:80"
+#    volumes:
+#      - ./example_browserclient:/usr/share/nginx/html
+#
+#volumes:
+#  cache:
