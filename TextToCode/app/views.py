@@ -115,15 +115,71 @@ def prompt() -> Response:
     return jsonify(response_data)
 
 
+def convert_to_json(input_string: str) -> dict:
+    """
+    Converts a string representation of a JSON-like object into a proper JSON object.
+    Ensures single quotes are replaced with escaped double quotes and handles f-strings properly.
 
-# # testing endpoint
-# @app_views.route('/get_user_messages', methods=['POST'])
-# def get_user_messages() -> Any:
-#     """
-#     Receives POST request with user ID and conversation ID as parameters
-#     in the request body and returns the filtered messages from Firebase.
-#     """
-#     data = request.json  # Get the JSON data from the request body
+    Args:
+        input_string (str): The input string to be converted.
+
+    Returns:
+        dict: A dictionary representation of the JSON.
+    """
+    try:
+        # Step 1: Replace escaped newlines with actual newlines
+        processed_string = input_string.replace('\\n', '\n')
+
+        # Step 2: Replace single quotes with double quotes, handling escaped single quotes
+        processed_string = re.sub(r"(?<!\\)'", '"', processed_string)
+        processed_string = processed_string.replace("\\'", "'")
+
+        # Step 3: Remove inline comments outside key-value pairs
+        def remove_inline_comments(match):
+            key_value = match.group(0)
+            # Strip inline comments after the key-value pair
+            return re.sub(r'\s*#.*$', '', key_value)
+
+        # Match key-value pairs and remove inline comments
+        processed_string = re.sub(
+            r'"[^"]*"\s*:\s*".*?",?#.*$',
+            remove_inline_comments,
+            processed_string,
+            flags=re.MULTILINE
+        )
+
+        # Step 4: Attempt to parse as JSON
+        return json.loads(processed_string)
+
+
+    except json.JSONDecodeError as e:
+
+        current_app.logger.error(f"JSON Decode Error: {str(e)}")
+        try:
+            # Step 4: Remove everything before the first "{" and after the last "}"
+            start_index = input_string.find('{')
+            end_index = input_string.rfind('}')
+            if start_index != -1 and end_index != -1:
+                trimmed_string = input_string[start_index:end_index + 1]
+                current_app.logger.info(f"Trimmed string for retry: {trimmed_string}")
+                # Retry parsing the trimmed string
+                return json.loads(trimmed_string)
+            else:
+                current_app.logger.error("No valid JSON structure found in the input string.")
+                return input_string
+        except json.JSONDecodeError as inner_e:
+            current_app.logger.error(f"Retry JSON Decode Error: {str(inner_e)}")
+            return input_string
+
+
+# testing endpoint
+@app_views.route('/get_user_messages', methods=['POST'])
+def get_user_messages() -> Any:
+    """
+    Receives POST request with user ID and conversation ID as parameters
+    in the request body and returns the filtered messages from Firebase.
+    """
+    data = request.json  # Get the JSON data from the request body
 
 #     if not data:
 #         return jsonify({'error': 'No data provided'}), 400
