@@ -1,23 +1,18 @@
 from flask import Blueprint, request, jsonify, current_app
-from typing import Any, Dict
+from typing import Dict
 from flask.wrappers import Response
-import requests
-from app.ollama_utils import query_ollama_prompt
-from app.firebase_utils import get_user_messages_from_firebase, update_user_messages_to_firebase, \
-    get_conversation_messages
+from app.ollama_utils import query_ollama_prompt, convert_to_json
+from app.firebase_utils import update_user_messages_to_firebase, get_conversation_messages
 from app.firebase_utils import update_string_data_to_firebase
-from app.firebase_utils import add_data_to_firebase
 import json
-import logging
-import ast
 import re
 
 app_views = Blueprint('app_views', __name__)
 # Constant string values
-ASSISTANT_ROLE = "assistant"
-USER_ROLE = "user"
+ASSISTANT_ROLE: str = "assistant"
+USER_ROLE: str = "user"
 # host machine's ip address
-OLLAMA_API = 'http://172.17.0.1:11434/api/chat'
+OLLAMA_API: str = 'http://172.17.0.1:11434/api/chat'
 
 
 @app_views.route('/context', methods=['POST'])
@@ -120,69 +115,29 @@ def prompt() -> Response:
     return jsonify(response_data)
 
 
-def convert_to_json(input_string: str) -> dict:
-    """
-    Converts a string representation of a JSON-like object into a proper JSON object.
-    Ensures single quotes are replaced with escaped double quotes and handles f-strings properly.
 
-    Args:
-        input_string (str): The input string to be converted.
+# # testing endpoint
+# @app_views.route('/get_user_messages', methods=['POST'])
+# def get_user_messages() -> Any:
+#     """
+#     Receives POST request with user ID and conversation ID as parameters
+#     in the request body and returns the filtered messages from Firebase.
+#     """
+#     data = request.json  # Get the JSON data from the request body
 
-    Returns:
-        dict: A dictionary representation of the JSON.
-    """
-    try:
-        # Step 1: Replace escaped newlines with actual newlines
-        processed_string = input_string.replace('\\n', '\n')
-        processed_string = re.sub(r"(?<!\\)'", '"', processed_string)
-        processed_string = processed_string.replace("\\'", "'")
+#     if not data:
+#         return jsonify({'error': 'No data provided'}), 400
 
-        # Step 3: Attempt to parse as JSON
-        return json.loads(processed_string)
+#     userid = data.get('userid')
+#     conversation_id = data.get('conversation_id')
 
+#     if not userid or not conversation_id:
+#         return jsonify({'error': 'Missing userid or conversation_id parameter'}), 400
 
-    except json.JSONDecodeError as e:
-
-        current_app.logger.error(f"JSON Decode Error: {str(e)}")
-        try:
-            # Step 4: Remove everything before the first "{" and after the last "}"
-            start_index = input_string.find('{')
-            end_index = input_string.rfind('}')
-            if start_index != -1 and end_index != -1:
-                trimmed_string = input_string[start_index:end_index + 1]
-                current_app.logger.info(f"Trimmed string for retry: {trimmed_string}")
-                # Retry parsing the trimmed string
-                return json.loads(trimmed_string)
-            else:
-                current_app.logger.error("No valid JSON structure found in the input string.")
-                return input_string
-        except json.JSONDecodeError as inner_e:
-            current_app.logger.error(f"Retry JSON Decode Error: {str(inner_e)}")
-            return input_string
-
-
-# testing endpoint
-@app_views.route('/get_user_messages', methods=['POST'])
-def get_user_messages() -> Any:
-    """
-    Receives POST request with user ID and conversation ID as parameters
-    in the request body and returns the filtered messages from Firebase.
-    """
-    data = request.json  # Get the JSON data from the request body
-
-    if not data:
-        return jsonify({'error': 'No data provided'}), 400
-
-    userid = data.get('userid')
-    conversation_id = data.get('conversation_id')
-
-    if not userid or not conversation_id:
-        return jsonify({'error': 'Missing userid or conversation_id parameter'}), 400
-
-    try:
-        messages = get_user_messages_from_firebase(userid, conversation_id)
-        if not messages:
-            return jsonify({'message': 'No messages found'}), 404
-        return jsonify({'success': True, 'messages': messages}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+#     try:
+#         messages = get_user_messages_from_firebase(userid, conversation_id)
+#         if not messages:
+#             return jsonify({'message': 'No messages found'}), 404
+#         return jsonify({'success': True, 'messages': messages}), 200
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500

@@ -1,17 +1,10 @@
-from typing import Dict, Any, List
+from typing import Dict
 from flask.wrappers import Response
+from flask import current_app
 import requests
-import json
 from app.exceptions import OllamaConnectionError, OllamaModelNotFoundError, OllamaResourceNotFoundError
-
-
-
-
-def query_ollama_models(url: str):
-    '''
-    Queries a list of models available on Ollama
-    '''
-
+import json
+import re
 
 def query_ollama_prompt(url: str, message_list: list, model: str = 'llama3.2-vision:11b') -> dict:
     '''
@@ -43,3 +36,45 @@ def query_ollama_prompt(url: str, message_list: list, model: str = 'llama3.2-vis
     else:
         print(f"Request failed with status code {response.status_code}")
         return f'Error: {response.status_code} - {response.text}'
+    
+
+
+def convert_to_json(input_string: str) -> dict:
+    """
+    Converts a string representation of a JSON-like object into a proper JSON object.
+    Ensures single quotes are replaced with escaped double quotes and handles f-strings properly.
+
+    Args:
+        input_string (str): The input string to be converted.
+
+    Returns:
+        dict: A dictionary representation of the JSON.
+    """
+    try:
+        # Step 1: Replace escaped newlines with actual newlines
+        processed_string = input_string.replace('\\n', '\n')
+        processed_string = re.sub(r"(?<!\\)'", '"', processed_string)
+        processed_string = processed_string.replace("\\'", "'")
+
+        # Step 3: Attempt to parse as JSON
+        return json.loads(processed_string)
+
+
+    except json.JSONDecodeError as e:
+
+        current_app.logger.error(f"JSON Decode Error: {str(e)}")
+        try:
+            # Step 4: Remove everything before the first "{" and after the last "}"
+            start_index = input_string.find('{')
+            end_index = input_string.rfind('}')
+            if start_index != -1 and end_index != -1:
+                trimmed_string = input_string[start_index:end_index + 1]
+                current_app.logger.info(f"Trimmed string for retry: {trimmed_string}")
+                # Retry parsing the trimmed string
+                return json.loads(trimmed_string)
+            else:
+                current_app.logger.error("No valid JSON structure found in the input string.")
+                return input_string
+        except json.JSONDecodeError as inner_e:
+            current_app.logger.error(f"Retry JSON Decode Error: {str(inner_e)}")
+            return input_string
