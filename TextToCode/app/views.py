@@ -134,10 +134,26 @@ def convert_to_json(input_string: str) -> dict:
     try:
         # Step 1: Replace escaped newlines with actual newlines
         processed_string = input_string.replace('\\n', '\n')
+
+        # Step 2: Replace single quotes with double quotes, handling escaped single quotes
         processed_string = re.sub(r"(?<!\\)'", '"', processed_string)
         processed_string = processed_string.replace("\\'", "'")
 
-        # Step 3: Attempt to parse as JSON
+        # Step 3: Remove inline comments outside key-value pairs
+        def remove_inline_comments(match):
+            key_value = match.group(0)
+            # Strip inline comments after the key-value pair
+            return re.sub(r'\s*#.*$', '', key_value)
+
+        # Match key-value pairs and remove inline comments
+        processed_string = re.sub(
+            r'"[^"]*"\s*:\s*".*?",?#.*$',
+            remove_inline_comments,
+            processed_string,
+            flags=re.MULTILINE
+        )
+
+        # Step 4: Attempt to parse as JSON
         return json.loads(processed_string)
 
 
