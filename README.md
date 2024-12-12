@@ -2,12 +2,32 @@
 
 ## Installation
 
-- ### Set up the environments for backend applications
-  
-  1. Install NVDIA GPU Driver: [Link](https://www.nvidia.com/en-us/drivers/)
-  2. Install the NVIDIA Container Toolkit packages: [Installing the NVIDIA Container Toolkit — NVIDIA Container Toolkit 1.17.0 documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installation)
-  3. Install Docker: [Docker Installation Manual](https://docs.docker.com/desktop/?_gl=1*1d2byo4*_gcl_au*OTc4Nzg2NTA0LjE3Mjg1NzQxNjk.*_ga*MjAzMzE0NzQ5Mi4xNzI4NTc0MTcw*_ga_XJWPQMJYHQ*MTczNDA0MDk4OC4yNy4xLjE3MzQwNDA5ODkuNTkuMC4w)
-  4. Install Docker Compose: [Docker Compose](https://docs.docker.com/compose/)
+#### Step 1: Install NVIDIA GPU Driver
+Download and install the appropriate NVIDIA GPU driver for your system:
+- [NVIDIA GPU Driver Download](https://www.nvidia.com/en-us/drivers/)
+
+#### Step 2: Install NVIDIA Container Toolkit
+Follow the official guide to install the NVIDIA Container Toolkit, which is required to enable GPU support in Docker:
+- [Installing the NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installation)
+
+#### Step 3: Install Docker
+Install Docker to manage and run containerized applications:
+- [Docker Installation Manual](https://docs.docker.com/desktop/?_gl=1*1d2byo4*_gcl_au*OTc4Nzg2NTA0LjE3Mjg1NzQxNjk.*_ga*MjAzMzE0NzQ5Mi4xNzI4NTc0MTcw*_ga_XJWPQMJYHQ*MTczNDA0MDk4OC4yNy4xLjE3MzQwNDA5ODkuNTkuMC4w)
+
+#### Step 4: Install Docker Compose
+Install Docker Compose to manage multi-container Docker applications:
+- [Docker Compose Documentation](https://docs.docker.com/compose/)
+
+### Notes:
+1. **Verify Installations**:
+   - Run `nvidia-smi` to ensure the NVIDIA driver and GPU are properly installed.
+   - Run `docker --version` to confirm Docker is installed.
+   - Run `docker compose version` to verify Docker Compose installation.
+
+2. **Optional**: Configure Docker to start automatically with the system.
+   ```bash
+   sudo systemctl enable docker
+   sudo systemctl start docker
 
 - ### Run Speech To Text Service
 1. In Windows and MacOS: Open the **Docker Desktop** application to ensure Docker is running.
@@ -78,7 +98,7 @@
    cd /path/to/TextToCode
    ```
    
-   5. Build the Docker container and start the service:
+5. Build the Docker container and start the service:
    
    ```bash
    docker-compose up --build
