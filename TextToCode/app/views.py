@@ -1,25 +1,53 @@
-from flask import Blueprint, request, jsonify, current_app
-from typing import Dict
-from flask.wrappers import Response
-from app.ollama_utils import query_ollama_prompt, convert_to_json
-from app.firebase_utils import update_user_messages_to_firebase, get_conversation_messages
-from app.firebase_utils import update_string_data_to_firebase
-import json
-import re
+"""
+# Project Name: Speech to Code
+# Author: STC Team
+# Date: 12/12/2024
+# Last Modified: 12/12/2024
+# Version: 1.0
 
-app_views = Blueprint('app_views', __name__)
-# Constant string values
+# Copyright (c) 2024 Brown University
+# All rights reserved.
+
+# This file is part of the STC project.
+# Usage of this file is restricted to the terms specified in the
+# accompanying LICENSE file.
+
+"""
+
+from flask import Blueprint, request, jsonify
+from typing import Dict, Any
+from flask.wrappers import Response
+from app.ollama_utils import query_ollama_prompt, convert_model_output_to_json
+from app.firebase_utils import update_user_messages_to_firebase, get_conversation_messages, update_string_data_to_firebase
+
+
+app_views: Blueprint = Blueprint('app_views', __name__)
 ASSISTANT_ROLE: str = "assistant"
 USER_ROLE: str = "user"
-# host machine's ip address
 OLLAMA_API: str = 'http://172.17.0.1:11434/api/chat'
-
 
 @app_views.route('/context', methods=['POST'])
 def context() -> Response:
     '''
-    Receives JSON data from the frontend, validates it, and sends it
-    to the ContextCreator class for processing.
+    This is the primary method of the context endpoint. This endpoint updates the
+    firebase database with a given file provided by the frontend. This file should
+    be in JSON format with line numbers as keys and the contents of each line as
+    the respective values. The userid and conversationid should be included as
+    headers as well. 
+
+    Required Headers:
+    :str userid: The unique user ID for the given user.
+    :str conversationid: The unique ID associated with the given message history.
+    :JSON context: A JSON of the following format:
+    {
+        "1": "<Contents of line 1>",
+        "2": "<Contents of line 2>",
+        "3": "<Contents of line 3>",
+        ...
+    }
+
+    Return:
+    Status code and response message
     '''
     data: Dict = request.json
 
@@ -30,8 +58,6 @@ def context() -> Response:
         return jsonify({'error': 'Missing "context" key in JSON'}), 400
     if not isinstance(data['context'], dict):
         return jsonify({'error': '"context" should be a dictionary'}), 400
-
-    # Validate other necessary keys
     try:
         userid: str = data['userid']
         convoid: str = data['conversationid']
@@ -42,30 +68,25 @@ def context() -> Response:
     # Send to ContextGenerator to update context in Firebase
     update_user_messages_to_firebase(convoid, userid, context, USER_ROLE)
 
-    # Return message
     return jsonify({'message': 'Context Received'})
 
 
 @app_views.route('/prompt', methods=['POST'])
 def prompt() -> Response:
     """
-    Endpoint to handle a user prompt request. This function:
-    1. processes the prompt
-    2. fetches conversation context from Firebase,
-    3. sends the prompt and context to Ollama for response
-    4. stores the LLM response back to Firebase.
+    This is the primary method for the prompt endpoint. It retrieves a user's
+    message history, queries Ollama for code generation, and updates the database.
 
-    :return: JSON response containing a success message and the LLM response.
+    Arguments:
+    :str userid: The unique user ID for the given user.
+    :str conversationid: The unique ID associated with the given message history.
+    :str prompt: The natural language user prompt for new code.
     """
 
     # Retrieve JSON data from the POST request
     data: Dict = request.json
-
-    # Guards to ensure properly formed JSON
     if data is None:
         return jsonify({'error': 'Invalid JSON'}), 400
-
-    # Extract required fields from the JSON request data
     try:
         userid: str = data['userid']
         convoid: str = data['conversationid']
@@ -74,11 +95,12 @@ def prompt() -> Response:
         return jsonify({'error': 'Missing key in JSON. Keys must include prompt, userid, and conversationid'}), 400
 
     # Gets prior context for the conversation
-    messages_list = get_conversation_messages(convoid)
+    messages_list: list = get_conversation_messages(convoid)
 
     # Update Firebase with the new user prompt message
     update_string_data_to_firebase(convoid, userid, prompt, USER_ROLE)
-    new_prompt_dict = {
+    
+    new_prompt_dict: Dict[str, Any] = {
         "role": USER_ROLE,
         "content": prompt
     }
@@ -86,14 +108,14 @@ def prompt() -> Response:
     # Append the current user prompt as a new dictionary entry in messages_list
     messages_list.append(new_prompt_dict)
 
-    # Send structured messages to Ollama
     try:
-        ollama_response = query_ollama_prompt(OLLAMA_API, messages_list)
+        # Send structured messages to Ollama
+        response_content: str = query_ollama_prompt(OLLAMA_API, messages_list)
+        # Parse results
+        json_response: Dict[str, Any] = convert_model_output_to_json(response_content)
     except Exception as e:
         return jsonify({'error': f'Ollama API request failed: {str(e)}'}), 500
-    response_content = ollama_response['message']['content']
-    # transfer the response content to json format
-    json_response = convert_to_json(response_content)
+    
     # Update Firebase with the LLM response
     try:
         update_string_data_to_firebase(convoid, userid, response_content, ASSISTANT_ROLE)
@@ -110,90 +132,4 @@ def prompt() -> Response:
             'modify_range': json_response.get('modify-range'),
         }
     }
-    # Debug: Log the type and content of json_response
-    # current_app.logger.debug(f"json_response type: {type(json_response)}, content: {json_response}")
     return jsonify(response_data)
-
-
-def convert_to_json(input_string: str) -> dict:
-    """
-    Converts a string representation of a JSON-like object into a proper JSON object.
-    Ensures single quotes are replaced with escaped double quotes and handles f-strings properly.
-
-    Args:
-        input_string (str): The input string to be converted.
-
-    Returns:
-        dict: A dictionary representation of the JSON.
-    """
-    try:
-        # Step 1: Replace escaped newlines with actual newlines
-        processed_string = input_string.replace('\\n', '\n')
-
-        # Step 2: Replace single quotes with double quotes, handling escaped single quotes
-        processed_string = re.sub(r"(?<!\\)'", '"', processed_string)
-        processed_string = processed_string.replace("\\'", "'")
-
-        # Step 3: Remove inline comments outside key-value pairs
-        def remove_inline_comments(match):
-            key_value = match.group(0)
-            # Strip inline comments after the key-value pair
-            return re.sub(r'\s*#.*$', '', key_value)
-
-        # Match key-value pairs and remove inline comments
-        processed_string = re.sub(
-            r'"[^"]*"\s*:\s*".*?",?#.*$',
-            remove_inline_comments,
-            processed_string,
-            flags=re.MULTILINE
-        )
-
-        # Step 4: Attempt to parse as JSON
-        return json.loads(processed_string)
-
-
-    except json.JSONDecodeError as e:
-
-        current_app.logger.error(f"JSON Decode Error: {str(e)}")
-        try:
-            # Step 4: Remove everything before the first "{" and after the last "}"
-            start_index = input_string.find('{')
-            end_index = input_string.rfind('}')
-            if start_index != -1 and end_index != -1:
-                trimmed_string = input_string[start_index:end_index + 1]
-                current_app.logger.info(f"Trimmed string for retry: {trimmed_string}")
-                # Retry parsing the trimmed string
-                return json.loads(trimmed_string)
-            else:
-                current_app.logger.error("No valid JSON structure found in the input string.")
-                return input_string
-        except json.JSONDecodeError as inner_e:
-            current_app.logger.error(f"Retry JSON Decode Error: {str(inner_e)}")
-            return input_string
-
-
-# testing endpoint
-@app_views.route('/get_user_messages', methods=['POST'])
-def get_user_messages() -> Any:
-    """
-    Receives POST request with user ID and conversation ID as parameters
-    in the request body and returns the filtered messages from Firebase.
-    """
-    data = request.json  # Get the JSON data from the request body
-
-#     if not data:
-#         return jsonify({'error': 'No data provided'}), 400
-
-#     userid = data.get('userid')
-#     conversation_id = data.get('conversation_id')
-
-#     if not userid or not conversation_id:
-#         return jsonify({'error': 'Missing userid or conversation_id parameter'}), 400
-
-#     try:
-#         messages = get_user_messages_from_firebase(userid, conversation_id)
-#         if not messages:
-#             return jsonify({'message': 'No messages found'}), 404
-#         return jsonify({'success': True, 'messages': messages}), 200
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 500

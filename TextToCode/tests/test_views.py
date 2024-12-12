@@ -1,13 +1,22 @@
-import pytest
-from flask import Flask, jsonify
+"""
+# Project Name: Speech to Code
+# Author: STC Team
+# Date: 12/12/2024
+# Last Modified: 12/12/2024
+# Version: 1.0
+
+# Copyright (c) 2024 Brown University
+# All rights reserved.
+
+# This file is part of the STC project.
+# Usage of this file is restricted to the terms specified in the
+# accompanying LICENSE file.
+
+"""
+
 from flask.wrappers import Response
-from app import create_app
-import json
+from TextToCode.app.ollama_utils import convert_model_output_to_json
 
-from app.views import convert_to_json
-
-
-# TODO: add comments
 
 def test_context(client):
     response: Response = client.post('/context', json={'context': 'example context'})
@@ -163,7 +172,7 @@ def test_code_snippets():
       }
     }
     '''
-    result = convert_to_json(input_str)
+    result = convert_model_output_to_json(input_str)
     print(result)
     # assert 'code' in result
     # assert '21' in result['code']

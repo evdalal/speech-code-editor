@@ -1,6 +1,22 @@
+"""
+# Project Name: Speech to Code
+# Author: STC Team
+# Date: 12/12/2024
+# Last Modified: 12/12/2024
+# Version: 1.0
+
+# Copyright (c) 2024 Brown University
+# All rights reserved.
+
+# This file is part of the STC project.
+# Usage of this file is restricted to the terms specified in the
+# accompanying LICENSE file.
+
+"""
+
 import os
-from firebase_admin import credentials, db, initialize_app
-from app.firebase_utils import update_user_messages_to_firebase, get_conversation_messages, get_user_messages_from_firebase
+from firebase_admin import credentials
+from app.firebase_utils import update_user_messages_to_firebase, get_conversation_messages
 import firebase_admin
 
 
