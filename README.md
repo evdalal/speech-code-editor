@@ -11,6 +11,58 @@
 
 ## Speech-To-Text
 
+### API Specifications
+
+### WebSocket Endpoint
+
+**URL**: `ws://<server-ip>:<port-number>`
+
+---
+
+### Client to Server Communication
+
+Clients send binary messages containing metadata and audio data.
+
+**Message Format**:
+- **First 4 bytes**: Metadata length (integer, little-endian).
+- **Next `metadata_length` bytes**: JSON metadata as a UTF-8 string.
+- **Remaining bytes**: Audio data (16-bit PCM format).
+
+**Metadata Fields**:
+
+| Field         | Type   | Description                            |
+|---------------|--------|----------------------------------------|
+| `sampleRate`  | Number | The sample rate of the incoming audio. |
+
+---
+
+### Server to Client Communication
+
+The server sends JSON messages to deliver transcription updates.
+
+**Message Types**:
+
+1. **Real-Time Transcription**:
+    ```
+    {
+        "type": "realtime",
+        "text": "<transcribed_text>"
+    }
+    ```
+    - Sent frequently with portions of text detected in real-time.
+
+2. **Full Sentence Transcription**:
+    ```
+    {
+        "type": "fullSentence",
+        "text": "<complete_sentence>"
+    }
+    ```
+    - Sent when a complete sentence has been transcribed.
+
+---
+
+
 
 ## Text-To-Code
 
